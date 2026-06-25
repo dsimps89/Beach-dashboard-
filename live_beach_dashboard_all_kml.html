@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Beach Intelligence Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg:#07111f; --panel:#0f1b2d; --muted:#8fa3bf; --text:#e8f0ff;
+      --good:#21d07a; --ok:#f2c94c; --bad:#ff5c7a; --line:#23344f;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:18px 20px; border-bottom:1px solid var(--line); background:linear-gradient(135deg,#07111f,#10213b); }
+    h1 { margin:0; font-size:22px; }
+    .sub { color:var(--muted); margin-top:6px; font-size:13px; }
+    .controls { display:flex; gap:12px; flex-wrap:wrap; padding:14px 20px; background:#0a1627; border-bottom:1px solid var(--line); align-items:end; }
+    label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); }
+    input, select, button { background:#101e33; color:var(--text); border:1px solid #2d4160; border-radius:10px; padding:10px 12px; }
+    button { cursor:pointer; font-weight:700; }
+    button:hover { border-color:#6da7ff; }
+    main { display:grid; grid-template-columns: 1.15fr .85fr; height: calc(100vh - 132px); }
+    #map { min-height:420px; }
+    aside { overflow:auto; border-left:1px solid var(--line); background:var(--panel); }
+    .status { padding:12px 16px; color:var(--muted); border-bottom:1px solid var(--line); font-size:13px; }
+    .card { margin:12px; padding:14px; background:#0b1728; border:1px solid #243650; border-radius:16px; }
+    .row { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .name { font-weight:800; font-size:15px; }
+    .score { font-size:28px; font-weight:900; }
+    .pill { border-radius:999px; padding:4px 9px; font-size:12px; border:1px solid #314866; color:#b7c7dd; }
+    .metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
+    .metric { padding:9px; background:#101e33; border-radius:10px; color:#c8d7ea; font-size:12px; }
+    .metric b { display:block; color:#fff; font-size:14px; margin-top:2px; }
+    .good { color:var(--good); } .ok { color:var(--ok); } .bad { color:var(--bad); }
+    .legend { position:absolute; z-index:900; bottom:18px; left:18px; background:#081526dd; border:1px solid #2d4160; border-radius:12px; padding:10px; font-size:12px; }
+    .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+    @media(max-width:900px) { main { grid-template-columns:1fr; height:auto; } #map { height:55vh; } aside { border-left:none; } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Live Beach Intelligence Dashboard</h1>
+  <div class="sub">All 16 KML points loaded. Live forecast source: Open-Meteo. Scores update in browser.</div>
+</header>
+
+<section class="controls">
+  <label>Date
+    <input id="dateInput" type="date" />
+  </label>
+  <label>Sort by
+    <select id="sortSelect">
+      <option value="overall">Overall score</option>
+      <option value="crowd">Lowest crowd risk</option>
+      <option value="weather">Weather score</option>
+      <option value="name">Name</option>
+    </select>
+  </label>
+  <label>Show
+    <select id="filterSelect">
+      <option value="all">All points</option>
+      <option value="beach">Beaches only</option>
+      <option value="reference">Reference / boating points</option>
+    </select>
+  </label>
+  <button id="refreshBtn">Refresh live data</button>
+</section>
+
+<main>
+  <div id="map">
+    <div class="legend">
+      <div><span class="dot" style="background:#21d07a"></span>80–100 strong</div>
+      <div><span class="dot" style="background:#f2c94c"></span>55–79 moderate</div>
+      <div><span class="dot" style="background:#ff5c7a"></span>0–54 weak</div>
+    </div>
+  </div>
+  <aside>
+    <div class="status" id="status">Ready.</div>
+    <div id="cards"></div>
+  </aside>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const BEACHES = [
+  {
+    "name": "Sand Point Beach",
+    "lat": 42.3383074,
+    "lon": -82.9187863
+  },
+  {
+    "name": "Lakeview Park West Beach",
+    "lat": 42.2970806,
+    "lon": -82.7112611
+  },
+  {
+    "name": "Northwest Beach",
+    "lat": 41.969468,
+    "lon": -82.5359457
+  },
+  {
+    "name": "Seacliff Beach",
+    "lat": 42.029238,
+    "lon": -82.6054961
+  },
+  {
+    "name": "Cedar Beach Conservation Area",
+    "lat": 42.11285095447418,
+    "lon": -82.94351103782327
+  },
+  {
+    "name": "Mettawas Park and Garden",
+    "lat": 42.026497,
+    "lon": -82.736811
+  },
+  {
+    "name": "Colchester Beach",
+    "lat": 41.9837361,
+    "lon": -82.9341058
+  },
+  {
+    "name": "Holiday Beach Conservation Area",
+    "lat": 42.042247,
+    "lon": -83.034999
+  },
+  {
+    "name": "KML Point 9",
+    "lat": 42.6117187,
+    "lon": -80.2882277
+  },
+  {
+    "name": "Muscamoot Bay",
+    "lat": 42.6065,
+    "lon": -82.699
+  },
+  {
+    "name": "KML Point 11",
+    "lat": 42.30183,
+    "lon": -82.779733
+  },
+  {
+    "name": "KML Point 12",
+    "lat": 42.2575156,
+    "lon": -81.9147414
+  },
+  {
+    "name": "KML Point 13",
+    "lat": 43.3130397,
+    "lon": -81.75622419999999
+  },
+  {
+    "name": "jobbie nooner",
+    "lat": 42.5381,
+    "lon": -82.6766
+  },
+  {
+    "name": "gull island",
+    "lat": 42.53,
+    "lon": -82.67999999999999
+  },
+  {
+    "name": "KML Point 16",
+    "lat": 42.472727,
+    "lon": -82.405833
+  }
+];
+const referenceNames = new Set(["jobbie nooner","gull island","muscamoot bay"]);
+const map = L.map('map').setView([42.25, -82.65], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+let markers = [];
+let results = [];
+
+function todayISO() {
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+document.getElementById('dateInput').value = todayISO();
+
+function clamp(n,min,max) { return Math.max(min, Math.min(max, n)); }
+
+function isReference(b) {
+  const n = b.name.toLowerCase();
+  return referenceNames.has(n) || n.includes("point ") || n.includes("reference") || n.includes("jobbie") || n.includes("gull island");
+}
+
+function colorFor(score) {
+  if(score >= 80) return "#21d07a";
+  if(score >= 55) return "#f2c94c";
+  return "#ff5c7a";
+}
+
+function scoreWeather(daily, idx) {
+  const t = daily.temperature_2m_max?.[idx] ?? 0;
+  const rain = daily.precipitation_sum?.[idx] ?? 0;
+  const wind = daily.wind_speed_10m_max?.[idx] ?? 0;
+  const uv = daily.uv_index_max?.[idx] ?? 0;
+  const cloud = daily.cloud_cover_mean?.[idx] ?? 50;
+
+  let s = 50;
+  if(t >= 24 && t <= 31) s += 25;
+  else if(t >= 18 && t < 24) s += 12;
+  else if(t > 34) s -= 18;
+  else if(t < 16) s -= 20;
+
+  if(rain < 1) s += 15;
+  else if(rain <= 4) s += 2;
+  else s -= 22;
+
+  if(wind <= 18) s += 12;
+  else if(wind <= 28) s += 2;
+  else s -= 18;
+
+  if(uv >= 3 && uv <= 8) s += 6;
+  else if(uv > 9) s -= 6;
+
+  if(cloud < 45) s += 5;
+  else if(cloud > 80) s -= 8;
+
+  return clamp(Math.round(s),0,100);
+}
+
+function crowdProbability(dateStr, daily, idx) {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = d.getDay();
+  const weekend = day === 0 || day === 6;
+  const t = daily.temperature_2m_max?.[idx] ?? 0;
+  const rain = daily.precipitation_sum?.[idx] ?? 0;
+  const wind = daily.wind_speed_10m_max?.[idx] ?? 0;
+
+  // Bayesian-style log odds update from a baseline.
+  let logOdds = Math.log(0.35 / 0.65);
+  if(weekend) logOdds += 0.85;
+  if(t >= 27) logOdds += 0.65;
+  if(t >= 31) logOdds += 0.25;
+  if(rain < 1) logOdds += 0.35;
+  if(rain > 5) logOdds -= 0.85;
+  if(wind > 30) logOdds -= 0.35;
+
+  const month = d.getMonth()+1;
+  if(month === 7 || month === 8) logOdds += 0.35;
+  if(month === 6) logOdds += 0.2;
+
+  const p = 1 / (1 + Math.exp(-logOdds));
+  return Math.round(p * 100);
+}
+
+async function fetchBeach(beach, dateStr) {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", beach.lat);
+  url.searchParams.set("longitude", beach.lon);
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,uv_index_max,cloud_cover_mean");
+  url.searchParams.set("timezone", "America/Toronto");
+  url.searchParams.set("forecast_days", "14");
+
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`Open-Meteo failed for ${beach.name}`);
+  const data = await res.json();
+  const idx = data.daily.time.indexOf(dateStr);
+  const useIdx = idx >= 0 ? idx : 0;
+  const weather = scoreWeather(data.daily, useIdx);
+  const crowd = crowdProbability(data.daily.time[useIdx], data.daily, useIdx);
+  const safety = clamp(100 - Math.max(0, (data.daily.precipitation_sum?.[useIdx] ?? 0) * 9), 0, 100);
+  const overall = clamp(Math.round(weather * 0.62 + safety * 0.23 + (100 - crowd) * 0.15), 0, 100);
+  return {
+    ...beach,
+    type: isReference(beach) ? "reference" : "beach",
+    date: data.daily.time[useIdx],
+    weather,
+    crowd,
+    safety,
+    overall,
+    tempMax: data.daily.temperature_2m_max?.[useIdx],
+    tempMin: data.daily.temperature_2m_min?.[useIdx],
+    rain: data.daily.precipitation_sum?.[useIdx],
+    wind: data.daily.wind_speed_10m_max?.[useIdx],
+    uv: data.daily.uv_index_max?.[useIdx],
+    cloud: data.daily.cloud_cover_mean?.[useIdx]
+  };
+}
+
+function clearMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+}
+
+function render() {
+  const sort = document.getElementById('sortSelect').value;
+  const filter = document.getElementById('filterSelect').value;
+  let shown = results.filter(r => filter === "all" || r.type === filter);
+  shown.sort((a,b) => {
+    if(sort === "name") return a.name.localeCompare(b.name);
+    if(sort === "crowd") return a.crowd - b.crowd;
+    if(sort === "weather") return b.weather - a.weather;
+    return b.overall - a.overall;
+  });
+
+  clearMarkers();
+  const cards = document.getElementById('cards');
+  cards.innerHTML = "";
+
+  shown.forEach(r => {
+    const color = colorFor(r.overall);
+    const marker = L.circleMarker([r.lat, r.lon], {
+      radius: 10,
+      color,
+      fillColor: color,
+      fillOpacity: 0.85,
+      weight: 2
+    }).addTo(map);
+    marker.bindPopup(`<b>${r.name}</b><br>Overall: ${r.overall}/100<br>Weather: ${r.weather}/100<br>Crowd risk: ${r.crowd}%<br>Date: ${r.date}`);
+    markers.push(marker);
+
+    const cls = r.overall >= 80 ? "good" : r.overall >= 55 ? "ok" : "bad";
+    const div = document.createElement('div');
+    div.className = "card";
+    div.innerHTML = `
+      <div class="row">
+        <div>
+          <div class="name">${r.name}</div>
+          <div class="pill">${r.type} · ${r.date}</div>
+        </div>
+        <div class="score ${cls}">${r.overall}</div>
+      </div>
+      <div class="metrics">
+        <div class="metric">Weather<b>${r.weather}/100</b></div>
+        <div class="metric">Crowd risk<b>${r.crowd}%</b></div>
+        <div class="metric">High temp<b>${r.tempMax ?? "—"}°C</b></div>
+        <div class="metric">Rain<b>${r.rain ?? "—"} mm</b></div>
+        <div class="metric">Wind<b>${r.wind ?? "—"} km/h</b></div>
+        <div class="metric">UV<b>${r.uv ?? "—"}</b></div>
+      </div>
+    `;
+    cards.appendChild(div);
+  });
+
+  if(shown.length) {
+    const bounds = L.latLngBounds(shown.map(r => [r.lat, r.lon]));
+    map.fitBounds(bounds.pad(0.2));
+  }
+}
+
+async function refresh() {
+  const dateStr = document.getElementById('dateInput').value || todayISO();
+  const status = document.getElementById('status');
+  status.textContent = `Loading live forecast data for ${BEACHES.length} KML points...`;
+  results = [];
+  document.getElementById('cards').innerHTML = "";
+  clearMarkers();
+
+  const settled = await Promise.allSettled(BEACHES.map(b => fetchBeach(b, dateStr)));
+  results = settled.filter(x => x.status === "fulfilled").map(x => x.value);
+  const failed = settled.filter(x => x.status === "rejected").length;
+
+  status.textContent = `Loaded ${results.length} points. Failed: ${failed}. Source: Open-Meteo live forecast.`;
+  render();
+}
+
+document.getElementById('refreshBtn').addEventListener('click', refresh);
+document.getElementById('sortSelect').addEventListener('change', render);
+document.getElementById('filterSelect').addEventListener('change', render);
+document.getElementById('dateInput').addEventListener('change', refresh);
+
+refresh();
+</script>
+</body>
+</html>
