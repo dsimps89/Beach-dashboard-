@@ -1,370 +1,900 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Live Beach Intelligence Dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
-    :root {
-      --bg:#07111f; --panel:#0f1b2d; --muted:#8fa3bf; --text:#e8f0ff;
-      --good:#21d07a; --ok:#f2c94c; --bad:#ff5c7a; --line:#23344f;
+    :root{
+      --bg:#071018;
+      --panel:#0d1b26;
+      --panel2:#102638;
+      --text:#eaf6ff;
+      --muted:#9eb5c7;
+      --line:#21394c;
+      --good:#00e676;
+      --ok:#ffeb3b;
+      --mid:#ff9800;
+      --bad:#ff5252;
+      --blue:#35b7ff;
     }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
-    header { padding:18px 20px; border-bottom:1px solid var(--line); background:linear-gradient(135deg,#07111f,#10213b); }
-    h1 { margin:0; font-size:22px; }
-    .sub { color:var(--muted); margin-top:6px; font-size:13px; }
-    .controls { display:flex; gap:12px; flex-wrap:wrap; padding:14px 20px; background:#0a1627; border-bottom:1px solid var(--line); align-items:end; }
-    label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); }
-    input, select, button { background:#101e33; color:var(--text); border:1px solid #2d4160; border-radius:10px; padding:10px 12px; }
-    button { cursor:pointer; font-weight:700; }
-    button:hover { border-color:#6da7ff; }
-    main { display:grid; grid-template-columns: 1.15fr .85fr; height: calc(100vh - 132px); }
-    #map { min-height:420px; }
-    aside { overflow:auto; border-left:1px solid var(--line); background:var(--panel); }
-    .status { padding:12px 16px; color:var(--muted); border-bottom:1px solid var(--line); font-size:13px; }
-    .card { margin:12px; padding:14px; background:#0b1728; border:1px solid #243650; border-radius:16px; }
-    .row { display:flex; justify-content:space-between; gap:10px; align-items:center; }
-    .name { font-weight:800; font-size:15px; }
-    .score { font-size:28px; font-weight:900; }
-    .pill { border-radius:999px; padding:4px 9px; font-size:12px; border:1px solid #314866; color:#b7c7dd; }
-    .metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
-    .metric { padding:9px; background:#101e33; border-radius:10px; color:#c8d7ea; font-size:12px; }
-    .metric b { display:block; color:#fff; font-size:14px; margin-top:2px; }
-    .good { color:var(--good); } .ok { color:var(--ok); } .bad { color:var(--bad); }
-    .legend { position:absolute; z-index:900; bottom:18px; left:18px; background:#081526dd; border:1px solid #2d4160; border-radius:12px; padding:10px; font-size:12px; }
-    .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
-    @media(max-width:900px) { main { grid-template-columns:1fr; height:auto; } #map { height:55vh; } aside { border-left:none; } }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at top left, rgba(53,183,255,.16), transparent 34%),
+        linear-gradient(180deg,#071018,#04070b);
+      color:var(--text);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    header{
+      padding:18px 18px 10px;
+      border-bottom:1px solid var(--line);
+      background:rgba(7,16,24,.84);
+      backdrop-filter:blur(12px);
+      position:sticky;
+      top:0;
+      z-index:900;
+    }
+    h1{
+      margin:0 0 6px;
+      font-size:clamp(22px,4vw,36px);
+      letter-spacing:.2px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+      max-width:1050px;
+      line-height:1.35;
+    }
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+      align-items:center;
+    }
+    button,select{
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:700;
+      min-height:42px;
+    }
+    button{
+      cursor:pointer;
+      background:linear-gradient(180deg,#174a68,#102b3e);
+      box-shadow:0 8px 22px rgba(0,0,0,.22);
+    }
+    button:hover{filter:brightness(1.12)}
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      border:1px solid var(--line);
+      background:rgba(16,38,56,.7);
+      padding:9px 12px;
+      border-radius:999px;
+      color:var(--muted);
+      font-size:13px;
+    }
+    main{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap:14px;
+      padding:14px;
+    }
+    #map{
+      height:72vh;
+      min-height:520px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:0 18px 55px rgba(0,0,0,.38);
+      background:#071018;
+    }
+    .side{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      min-width:0;
+    }
+    .card{
+      border:1px solid var(--line);
+      background:rgba(13,27,38,.88);
+      border-radius:18px;
+      box-shadow:0 16px 44px rgba(0,0,0,.28);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;
+      padding:14px 16px;
+      font-size:18px;
+      border-bottom:1px solid var(--line);
+      background:rgba(16,38,56,.56);
+    }
+    .card-body{padding:14px 16px}
+    #status{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.4;
+    }
+    .best{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    .best-item{
+      border:1px solid var(--line);
+      background:#0b1721;
+      border-radius:14px;
+      padding:12px;
+    }
+    .best-title{
+      font-weight:900;
+      font-size:16px;
+      margin-bottom:4px;
+    }
+    .score-big{
+      font-size:34px;
+      font-weight:950;
+      letter-spacing:-1px;
+    }
+    .muted{color:var(--muted)}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:8px;
+      margin-top:10px;
+    }
+    .metric{
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:8px;
+      background:#07131d;
+      min-width:0;
+    }
+    .metric b{display:block;font-size:15px}
+    .metric span{color:var(--muted);font-size:11px}
+    .table-wrap{
+      overflow:auto;
+      max-height:55vh;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+      min-width:880px;
+    }
+    th,td{
+      padding:10px 9px;
+      border-bottom:1px solid var(--line);
+      vertical-align:middle;
+      text-align:left;
+      white-space:nowrap;
+    }
+    th{
+      color:#cfefff;
+      position:sticky;
+      top:0;
+      background:#102638;
+      z-index:1;
+      font-size:12px;
+    }
+    tr:hover td{background:rgba(53,183,255,.06)}
+    .badge{
+      display:inline-block;
+      border-radius:999px;
+      padding:4px 8px;
+      font-weight:900;
+      color:#061018;
+      min-width:42px;
+      text-align:center;
+    }
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip{
+      background:#0b1721;
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+    .popup-title{font-size:17px;font-weight:950;margin-bottom:3px}
+    .popup-sub{color:var(--muted);font-size:12px;margin-bottom:8px}
+    .popup-table{
+      width:100%;
+      min-width:0;
+      font-size:12px;
+    }
+    .popup-table th,.popup-table td{
+      padding:5px 4px;
+      white-space:nowrap;
+    }
+    .source-list{
+      margin:0;
+      padding-left:18px;
+      color:var(--muted);
+      line-height:1.45;
+      font-size:13px;
+    }
+    .source-list a{color:#7ad4ff}
+    @media (max-width: 980px){
+      main{grid-template-columns:1fr}
+      #map{height:58vh}
+      .grid{grid-template-columns:repeat(2,1fr)}
+    }
   </style>
 </head>
+
 <body>
 <header>
   <h1>Live Beach Intelligence Dashboard</h1>
-  <div class="sub">All 16 KML points loaded. Live forecast source: Open-Meteo. Scores update in browser.</div>
+  <div class="sub">
+    One-file browser dashboard using live Open-Meteo weather + marine forecast APIs. Scores are advisory estimates, not official public-health or safety notices.
+  </div>
+  <div class="controls">
+    <label class="pill">
+      Forecast day
+      <select id="daySelect"></select>
+    </label>
+    <button id="refreshBtn">Refresh live data</button>
+    <button id="historicBtn">Load 10-year heat trend</button>
+    <span class="pill" id="status">Waiting...</span>
+  </div>
 </header>
 
-<section class="controls">
-  <label>Date
-    <input id="dateInput" type="date" />
-  </label>
-  <label>Sort by
-    <select id="sortSelect">
-      <option value="overall">Overall score</option>
-      <option value="crowd">Lowest crowd risk</option>
-      <option value="weather">Weather score</option>
-      <option value="name">Name</option>
-    </select>
-  </label>
-  <label>Show
-    <select id="filterSelect">
-      <option value="all">All points</option>
-      <option value="beach">Beaches only</option>
-      <option value="reference">Reference / boating points</option>
-    </select>
-  </label>
-  <button id="refreshBtn">Refresh live data</button>
-</section>
-
 <main>
-  <div id="map">
-    <div class="legend">
-      <div><span class="dot" style="background:#21d07a"></span>80–100 strong</div>
-      <div><span class="dot" style="background:#f2c94c"></span>55–79 moderate</div>
-      <div><span class="dot" style="background:#ff5c7a"></span>0–54 weak</div>
+  <section>
+    <div id="map"></div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2>Best pick</h2>
+      <div class="card-body">
+        <div id="bestPanel" class="best">
+          <div class="muted">Run live update to rank beaches.</div>
+        </div>
+      </div>
     </div>
-  </div>
-  <aside>
-    <div class="status" id="status">Ready.</div>
-    <div id="cards"></div>
+
+    <div class="card">
+      <h2>Ranked locations</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Location</th>
+              <th>Water</th>
+              <th>Overall</th>
+              <th>Crowd</th>
+              <th>Safety</th>
+              <th>Swim</th>
+              <th>Temp</th>
+              <th>Rain</th>
+              <th>Wind</th>
+              <th>Wave</th>
+              <th>10yr heat</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live sources used</h2>
+      <div class="card-body">
+        <ul class="source-list">
+          <li>Open-Meteo Forecast API: air temp, rain, wind, gusts, UV, cloud cover.</li>
+          <li>Open-Meteo Marine API: wave height, wave period, wave direction where available.</li>
+          <li>Open-Meteo Archive API: optional 10-year same-date heat trend.</li>
+          <li>Weekend/season priors are used as Bayesian-style crowd evidence.</li>
+        </ul>
+      </div>
+    </div>
   </aside>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
 <script>
+/*
+  SINGLE-FILE BEACH INTELLIGENCE DASHBOARD
+
+  Notes:
+  - Runs fully in the browser.
+  - Directly calls public APIs with CORS support.
+  - Uses forecast and marine data from Open-Meteo.
+  - Historic trend button makes heavier archive calls, so it runs only on demand.
+  - Water-quality, police/bylaw, and Google crowd data are not included because
+    most of those sources need a backend parser, API key, or have CORS limits.
+*/
+
 const BEACHES = [
-  {
-    "name": "Sand Point Beach",
-    "lat": 42.3383074,
-    "lon": -82.9187863
-  },
-  {
-    "name": "Lakeview Park West Beach",
-    "lat": 42.2970806,
-    "lon": -82.7112611
-  },
-  {
-    "name": "Northwest Beach",
-    "lat": 41.969468,
-    "lon": -82.5359457
-  },
-  {
-    "name": "Seacliff Beach",
-    "lat": 42.029238,
-    "lon": -82.6054961
-  },
-  {
-    "name": "Cedar Beach Conservation Area",
-    "lat": 42.11285095447418,
-    "lon": -82.94351103782327
-  },
-  {
-    "name": "Mettawas Park and Garden",
-    "lat": 42.026497,
-    "lon": -82.736811
-  },
-  {
-    "name": "Colchester Beach",
-    "lat": 41.9837361,
-    "lon": -82.9341058
-  },
-  {
-    "name": "Holiday Beach Conservation Area",
-    "lat": 42.042247,
-    "lon": -83.034999
-  },
-  {
-    "name": "KML Point 9",
-    "lat": 42.6117187,
-    "lon": -80.2882277
-  },
-  {
-    "name": "Muscamoot Bay",
-    "lat": 42.6065,
-    "lon": -82.699
-  },
-  {
-    "name": "KML Point 11",
-    "lat": 42.30183,
-    "lon": -82.779733
-  },
-  {
-    "name": "KML Point 12",
-    "lat": 42.2575156,
-    "lon": -81.9147414
-  },
-  {
-    "name": "KML Point 13",
-    "lat": 43.3130397,
-    "lon": -81.75622419999999
-  },
-  {
-    "name": "jobbie nooner",
-    "lat": 42.5381,
-    "lon": -82.6766
-  },
-  {
-    "name": "gull island",
-    "lat": 42.53,
-    "lon": -82.67999999999999
-  },
-  {
-    "name": "KML Point 16",
-    "lat": 42.472727,
-    "lon": -82.405833
-  }
+  { name:"Sand Point Beach", lat:42.3383074, lon:-82.9187863, type:"beach", water:"Lake St. Clair", municipality:"Windsor" },
+  { name:"Lakeview Park West Beach", lat:42.2970806, lon:-82.7112611, type:"beach", water:"Lake St. Clair", municipality:"Lakeshore" },
+  { name:"Northwest Beach", lat:41.969468, lon:-82.5359457, type:"beach", water:"Lake Erie", municipality:"Point Pelee / Leamington" },
+  { name:"Seacliff Beach", lat:42.029238, lon:-82.6054961, type:"beach", water:"Lake Erie", municipality:"Leamington" },
+  { name:"Cedar Beach Conservation Area", lat:42.11285095447418, lon:-82.94351103782327, type:"conservation beach", water:"Lake Erie", municipality:"Kingsville" },
+  { name:"Mettawas Park and Garden", lat:42.026497, lon:-82.736811, type:"waterfront park", water:"Lake Erie", municipality:"Kingsville" },
+  { name:"Colchester Beach", lat:41.9837361, lon:-82.9341058, type:"beach", water:"Lake Erie", municipality:"Essex / Colchester" },
+  { name:"Holiday Beach Conservation Area", lat:42.042247, lon:-83.034999, type:"conservation area", water:"Lake Erie", municipality:"Amherstburg" },
+
+  // formerly unnamed KML points, renamed to nearest practical beach/boating area
+  { name:"Turkey Point / Long Point Area", lat:42.6117187, lon:-80.2882277, type:"beach area", water:"Lake Erie", municipality:"Norfolk County" },
+  { name:"Muscamoot Bay", lat:42.6065, lon:-82.699, type:"boating sandbar area", water:"Lake St. Clair", municipality:"Lake St. Clair" },
+  { name:"Puce / Lakeshore Waterfront Area", lat:42.30183, lon:-82.779733, type:"waterfront area", water:"Lake St. Clair", municipality:"Lakeshore / Puce" },
+  { name:"Rondeau Provincial Park Area", lat:42.2575156, lon:-81.9147414, type:"provincial park beach", water:"Lake Erie", municipality:"Chatham-Kent" },
+  { name:"Grand Bend Main Beach Area", lat:43.3130397, lon:-81.7562242, type:"major beach", water:"Lake Huron", municipality:"Lambton Shores" },
+  { name:"Jobbie Nooner Reference Point", lat:42.5381, lon:-82.6766, type:"reference / boating event", water:"Lake St. Clair", municipality:"Michigan side reference" },
+  { name:"Gull Island Reference Point", lat:42.53, lon:-82.68, type:"reference / island", water:"Lake St. Clair", municipality:"Michigan side reference" },
+  { name:"Mitchell's Bay Area", lat:42.472727, lon:-82.405833, type:"boating / beach area", water:"Lake St. Clair", municipality:"Chatham-Kent" }
 ];
-const referenceNames = new Set(["jobbie nooner","gull island","muscamoot bay"]);
-const map = L.map('map').setView([42.25, -82.65], 8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '&copy; OpenStreetMap'
+
+const state = {
+  results: [],
+  markers: [],
+  heatLayer: null,
+  dayIndex: 0,
+  historicLoaded: false
+};
+
+const map = L.map("map", { scrollWheelZoom:true }).setView([42.33, -82.50], 8);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: "© OpenStreetMap"
 }).addTo(map);
 
-let markers = [];
-let results = [];
+const bounds = L.latLngBounds(BEACHES.map(b => [b.lat,b.lon]));
+map.fitBounds(bounds.pad(0.16));
 
-function todayISO() {
-  const d = new Date();
-  return d.toISOString().slice(0,10);
-}
-document.getElementById('dateInput').value = todayISO();
+function $(id){ return document.getElementById(id); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+function round(n,d=0){ return n == null || Number.isNaN(n) ? null : Number(n.toFixed(d)); }
 
-function clamp(n,min,max) { return Math.max(min, Math.min(max, n)); }
+function setStatus(text){ $("status").textContent = text; }
 
-function isReference(b) {
-  const n = b.name.toLowerCase();
-  return referenceNames.has(n) || n.includes("point ") || n.includes("reference") || n.includes("jobbie") || n.includes("gull island");
-}
-
-function colorFor(score) {
-  if(score >= 80) return "#21d07a";
-  if(score >= 55) return "#f2c94c";
-  return "#ff5c7a";
-}
-
-function scoreWeather(daily, idx) {
-  const t = daily.temperature_2m_max?.[idx] ?? 0;
-  const rain = daily.precipitation_sum?.[idx] ?? 0;
-  const wind = daily.wind_speed_10m_max?.[idx] ?? 0;
-  const uv = daily.uv_index_max?.[idx] ?? 0;
-  const cloud = daily.cloud_cover_mean?.[idx] ?? 50;
-
-  let s = 50;
-  if(t >= 24 && t <= 31) s += 25;
-  else if(t >= 18 && t < 24) s += 12;
-  else if(t > 34) s -= 18;
-  else if(t < 16) s -= 20;
-
-  if(rain < 1) s += 15;
-  else if(rain <= 4) s += 2;
-  else s -= 22;
-
-  if(wind <= 18) s += 12;
-  else if(wind <= 28) s += 2;
-  else s -= 18;
-
-  if(uv >= 3 && uv <= 8) s += 6;
-  else if(uv > 9) s -= 6;
-
-  if(cloud < 45) s += 5;
-  else if(cloud > 80) s -= 8;
-
-  return clamp(Math.round(s),0,100);
+function initDaySelect(){
+  const sel = $("daySelect");
+  const today = new Date();
+  for(let i=0;i<14;i++){
+    const d = new Date(today);
+    d.setDate(today.getDate()+i);
+    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-CA", {weekday:"short", month:"short", day:"numeric"});
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener("change", () => {
+    state.dayIndex = Number(sel.value);
+    renderAll();
+  });
 }
 
-function crowdProbability(dateStr, daily, idx) {
+function scoreTemp(t){
+  if(t == null) return 50;
+  if(t >= 24 && t <= 31) return 100;
+  if(t >= 21 && t < 24) return 82;
+  if(t >= 18 && t < 21) return 62;
+  if(t > 31 && t <= 34) return 76;
+  if(t > 34) return 48;
+  return 30;
+}
+
+function scoreRain(mm, probability){
+  let s = 100;
+  const rain = mm ?? 0;
+  const p = probability ?? 0;
+  if(p > 25) s -= 10;
+  if(p > 45) s -= 18;
+  if(p > 70) s -= 28;
+  if(rain > 0.5) s -= 12;
+  if(rain > 2) s -= 20;
+  if(rain > 6) s -= 28;
+  return clamp(s,0,100);
+}
+
+function scoreWind(kmh, gust){
+  let s = 100;
+  const w = kmh ?? 0;
+  const g = gust ?? 0;
+  if(w > 16) s -= 10;
+  if(w > 24) s -= 18;
+  if(w > 32) s -= 25;
+  if(g > 38) s -= 15;
+  if(g > 50) s -= 22;
+  return clamp(s,0,100);
+}
+
+function scoreUV(uv){
+  if(uv == null) return 70;
+  if(uv <= 2) return 72;
+  if(uv <= 5) return 96;
+  if(uv <= 7) return 86;
+  if(uv <= 9) return 66;
+  return 48;
+}
+
+function scoreCloud(cloud){
+  if(cloud == null) return 70;
+  if(cloud <= 25) return 100;
+  if(cloud <= 55) return 82;
+  if(cloud <= 78) return 66;
+  return 46;
+}
+
+function scoreWave(waveMeters){
+  if(waveMeters == null) return 68;
+  if(waveMeters <= 0.20) return 100;
+  if(waveMeters <= 0.40) return 88;
+  if(waveMeters <= 0.70) return 63;
+  if(waveMeters <= 1.00) return 42;
+  return 24;
+}
+
+function scoreSeason(dateStr){
   const d = new Date(dateStr + "T12:00:00");
-  const day = d.getDay();
-  const weekend = day === 0 || day === 6;
-  const t = daily.temperature_2m_max?.[idx] ?? 0;
-  const rain = daily.precipitation_sum?.[idx] ?? 0;
-  const wind = daily.wind_speed_10m_max?.[idx] ?? 0;
-
-  // Bayesian-style log odds update from a baseline.
-  let logOdds = Math.log(0.35 / 0.65);
-  if(weekend) logOdds += 0.85;
-  if(t >= 27) logOdds += 0.65;
-  if(t >= 31) logOdds += 0.25;
-  if(rain < 1) logOdds += 0.35;
-  if(rain > 5) logOdds -= 0.85;
-  if(wind > 30) logOdds -= 0.35;
-
-  const month = d.getMonth()+1;
-  if(month === 7 || month === 8) logOdds += 0.35;
-  if(month === 6) logOdds += 0.2;
-
-  const p = 1 / (1 + Math.exp(-logOdds));
-  return Math.round(p * 100);
+  const m = d.getMonth()+1;
+  if(m === 7 || m === 8) return 100;
+  if(m === 6 || m === 9) return 82;
+  if(m === 5 || m === 10) return 55;
+  return 28;
 }
 
-async function fetchBeach(beach, dateStr) {
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", beach.lat);
-  url.searchParams.set("longitude", beach.lon);
-  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,uv_index_max,cloud_cover_mean");
-  url.searchParams.set("timezone", "America/Toronto");
-  url.searchParams.set("forecast_days", "14");
+function isLongWeekendLike(dateStr){
+  const d = new Date(dateStr + "T12:00:00");
+  const m = d.getMonth()+1;
+  const day = d.getDate();
+  const dow = d.getDay();
+  const weekend = dow === 0 || dow === 5 || dow === 6;
 
-  const res = await fetch(url);
-  if(!res.ok) throw new Error(`Open-Meteo failed for ${beach.name}`);
-  const data = await res.json();
-  const idx = data.daily.time.indexOf(dateStr);
-  const useIdx = idx >= 0 ? idx : 0;
-  const weather = scoreWeather(data.daily, useIdx);
-  const crowd = crowdProbability(data.daily.time[useIdx], data.daily, useIdx);
-  const safety = clamp(100 - Math.max(0, (data.daily.precipitation_sum?.[useIdx] ?? 0) * 9), 0, 100);
-  const overall = clamp(Math.round(weather * 0.62 + safety * 0.23 + (100 - crowd) * 0.15), 0, 100);
+  // Simple Canadian summer event pressure flags. Approximation only.
+  const canadaDayPressure = (m === 6 && day >= 28) || (m === 7 && day <= 3);
+  const civicHolidayPressure = (m === 8 && day <= 7);
+  const labourDayPressure = (m === 8 && day >= 29) || (m === 9 && day <= 3);
+  return weekend && (canadaDayPressure || civicHolidayPressure || labourDayPressure);
+}
+
+function bayesianCrowdProbability(row, beach){
+  const d = new Date(row.day + "T12:00:00");
+  const dow = d.getDay();
+  const isWeekend = dow === 0 || dow === 5 || dow === 6;
+
+  // Prior: baseline summer beach probability.
+  let logit = -0.62; // about 35%
+
+  // Evidence weights.
+  if(isWeekend) logit += 0.72;
+  if(isLongWeekendLike(row.day)) logit += 0.58;
+  if(beach.type.includes("major")) logit += 0.42;
+  if(beach.type.includes("boating")) logit += 0.36;
+  if(beach.type.includes("reference")) logit += 0.48;
+  if(beach.type.includes("conservation")) logit -= 0.08;
+
+  if(row.tempMax >= 28) logit += 0.70;
+  else if(row.tempMax >= 24) logit += 0.38;
+  else if(row.tempMax < 19) logit -= 0.70;
+
+  if((row.rainProbability ?? 0) < 20) logit += 0.24;
+  if((row.rainProbability ?? 0) > 55) logit -= 0.70;
+  if((row.windMax ?? 0) > 30) logit -= 0.28;
+  if((row.uvMax ?? 0) >= 5 && (row.uvMax ?? 0) <= 8) logit += 0.20;
+
+  const p = 1 / (1 + Math.exp(-logit));
+  return clamp(Math.round(p * 100), 0, 100);
+}
+
+function computeScores(row, beach){
+  const temp = scoreTemp(row.tempMax);
+  const rain = scoreRain(row.precipitation, row.rainProbability);
+  const wind = scoreWind(row.windMax, row.gustMax);
+  const uv = scoreUV(row.uvMax);
+  const cloud = scoreCloud(row.cloudCover);
+  const wave = scoreWave(row.waveHeight);
+  const season = scoreSeason(row.day);
+
+  const weatherScore = Math.round(temp*.30 + rain*.22 + wind*.20 + uv*.10 + cloud*.10 + season*.08);
+  const swimScore = Math.round(temp*.25 + rain*.20 + wind*.15 + wave*.25 + uv*.10 + season*.05);
+  const safetyScore = Math.round(rain*.28 + wind*.25 + wave*.28 + uv*.12 + cloud*.07);
+  const boatingScore = Math.round(wind*.35 + wave*.35 + rain*.18 + cloud*.07 + temp*.05);
+  const crowdScore = bayesianCrowdProbability(row, beach);
+
+  // Overall favours beach quality but penalizes high crowd probability slightly.
+  const crowdComfort = 100 - Math.max(0, crowdScore - 45) * 0.55;
+  const overall = Math.round(
+    weatherScore*.35 +
+    swimScore*.25 +
+    safetyScore*.20 +
+    boatingScore*.10 +
+    crowdComfort*.10
+  );
+
   return {
-    ...beach,
-    type: isReference(beach) ? "reference" : "beach",
-    date: data.daily.time[useIdx],
-    weather,
-    crowd,
-    safety,
-    overall,
-    tempMax: data.daily.temperature_2m_max?.[useIdx],
-    tempMin: data.daily.temperature_2m_min?.[useIdx],
-    rain: data.daily.precipitation_sum?.[useIdx],
-    wind: data.daily.wind_speed_10m_max?.[useIdx],
-    uv: data.daily.uv_index_max?.[useIdx],
-    cloud: data.daily.cloud_cover_mean?.[useIdx]
+    weatherScore: clamp(weatherScore,0,100),
+    swimScore: clamp(swimScore,0,100),
+    safetyScore: clamp(safetyScore,0,100),
+    boatingScore: clamp(boatingScore,0,100),
+    crowdScore: clamp(crowdScore,0,100),
+    overall: clamp(overall,0,100),
+    parts:{temp,rain,wind,uv,cloud,wave,season}
   };
 }
 
-function clearMarkers() {
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
+async function fetchForecast(beach){
+  const params = new URLSearchParams({
+    latitude: beach.lat,
+    longitude: beach.lon,
+    daily: [
+      "temperature_2m_max",
+      "temperature_2m_min",
+      "precipitation_sum",
+      "precipitation_probability_max",
+      "wind_speed_10m_max",
+      "wind_gusts_10m_max",
+      "uv_index_max",
+      "cloud_cover_mean"
+    ].join(","),
+    timezone: "America/Toronto",
+    forecast_days: "14"
+  });
+
+  const url = "https://api.open-meteo.com/v1/forecast?" + params.toString();
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("forecast API failed");
+  return await res.json();
 }
 
-function render() {
-  const sort = document.getElementById('sortSelect').value;
-  const filter = document.getElementById('filterSelect').value;
-  let shown = results.filter(r => filter === "all" || r.type === filter);
-  shown.sort((a,b) => {
-    if(sort === "name") return a.name.localeCompare(b.name);
-    if(sort === "crowd") return a.crowd - b.crowd;
-    if(sort === "weather") return b.weather - a.weather;
-    return b.overall - a.overall;
-  });
-
-  clearMarkers();
-  const cards = document.getElementById('cards');
-  cards.innerHTML = "";
-
-  shown.forEach(r => {
-    const color = colorFor(r.overall);
-    const marker = L.circleMarker([r.lat, r.lon], {
-      radius: 10,
-      color,
-      fillColor: color,
-      fillOpacity: 0.85,
-      weight: 2
-    }).addTo(map);
-    marker.bindPopup(`<b>${r.name}</b><br>Overall: ${r.overall}/100<br>Weather: ${r.weather}/100<br>Crowd risk: ${r.crowd}%<br>Date: ${r.date}`);
-    markers.push(marker);
-
-    const cls = r.overall >= 80 ? "good" : r.overall >= 55 ? "ok" : "bad";
-    const div = document.createElement('div');
-    div.className = "card";
-    div.innerHTML = `
-      <div class="row">
-        <div>
-          <div class="name">${r.name}</div>
-          <div class="pill">${r.type} · ${r.date}</div>
-        </div>
-        <div class="score ${cls}">${r.overall}</div>
-      </div>
-      <div class="metrics">
-        <div class="metric">Weather<b>${r.weather}/100</b></div>
-        <div class="metric">Crowd risk<b>${r.crowd}%</b></div>
-        <div class="metric">High temp<b>${r.tempMax ?? "—"}°C</b></div>
-        <div class="metric">Rain<b>${r.rain ?? "—"} mm</b></div>
-        <div class="metric">Wind<b>${r.wind ?? "—"} km/h</b></div>
-        <div class="metric">UV<b>${r.uv ?? "—"}</b></div>
-      </div>
-    `;
-    cards.appendChild(div);
-  });
-
-  if(shown.length) {
-    const bounds = L.latLngBounds(shown.map(r => [r.lat, r.lon]));
-    map.fitBounds(bounds.pad(0.2));
+async function fetchMarine(beach){
+  try{
+    const params = new URLSearchParams({
+      latitude: beach.lat,
+      longitude: beach.lon,
+      daily: ["wave_height_max","wave_direction_dominant","wave_period_max"].join(","),
+      timezone: "America/Toronto",
+      forecast_days: "7"
+    });
+    const url = "https://marine-api.open-meteo.com/v1/marine?" + params.toString();
+    const res = await fetch(url);
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){
+    return null;
   }
 }
 
-async function refresh() {
-  const dateStr = document.getElementById('dateInput').value || todayISO();
-  const status = document.getElementById('status');
-  status.textContent = `Loading live forecast data for ${BEACHES.length} KML points...`;
-  results = [];
-  document.getElementById('cards').innerHTML = "";
-  clearMarkers();
+function normalizeForecast(beach, forecast, marine){
+  const d = forecast.daily;
+  const m = marine?.daily;
+  const rows = [];
 
-  const settled = await Promise.allSettled(BEACHES.map(b => fetchBeach(b, dateStr)));
-  results = settled.filter(x => x.status === "fulfilled").map(x => x.value);
-  const failed = settled.filter(x => x.status === "rejected").length;
-
-  status.textContent = `Loaded ${results.length} points. Failed: ${failed}. Source: Open-Meteo live forecast.`;
-  render();
+  for(let i=0;i<d.time.length;i++){
+    const row = {
+      day: d.time[i],
+      tempMax: round(d.temperature_2m_max?.[i],1),
+      tempMin: round(d.temperature_2m_min?.[i],1),
+      precipitation: round(d.precipitation_sum?.[i] ?? 0,1),
+      rainProbability: round(d.precipitation_probability_max?.[i] ?? 0,0),
+      windMax: round(d.wind_speed_10m_max?.[i],0),
+      gustMax: round(d.wind_gusts_10m_max?.[i],0),
+      uvMax: round(d.uv_index_max?.[i],1),
+      cloudCover: round(d.cloud_cover_mean?.[i],0),
+      waveHeight: round(m?.wave_height_max?.[i],2),
+      wavePeriod: round(m?.wave_period_max?.[i],1),
+      waveDirection: round(m?.wave_direction_dominant?.[i],0)
+    };
+    row.scores = computeScores(row, beach);
+    rows.push(row);
+  }
+  return rows;
 }
 
-document.getElementById('refreshBtn').addEventListener('click', refresh);
-document.getElementById('sortSelect').addEventListener('change', render);
-document.getElementById('filterSelect').addEventListener('change', render);
-document.getElementById('dateInput').addEventListener('change', refresh);
+async function loadOneBeach(beach, index, total){
+  setStatus(`Loading ${index+1}/${total}: ${beach.name}`);
+  const [forecast, marine] = await Promise.all([
+    fetchForecast(beach),
+    fetchMarine(beach)
+  ]);
+  return { beach, rows: normalizeForecast(beach, forecast, marine), historic: null };
+}
 
-refresh();
+function scoreColor(score){
+  if(score >= 85) return "#00e676";
+  if(score >= 70) return "#ffeb3b";
+  if(score >= 55) return "#ff9800";
+  return "#ff5252";
+}
+
+function scoreLabel(score){
+  if(score >= 85) return "Excellent";
+  if(score >= 70) return "Good";
+  if(score >= 55) return "Mixed";
+  return "Poor";
+}
+
+function clearMarkers(){
+  state.markers.forEach(m => map.removeLayer(m));
+  state.markers = [];
+  if(state.heatLayer){
+    map.removeLayer(state.heatLayer);
+    state.heatLayer = null;
+  }
+}
+
+function popupHtml(result){
+  const r = result.rows[state.dayIndex] || result.rows[0];
+  const s = r.scores;
+  const seven = result.rows.slice(0,7).map(x => `
+    <tr>
+      <td>${shortDate(x.day)}</td>
+      <td><b>${x.scores.overall}</b></td>
+      <td>${x.scores.crowdScore}%</td>
+      <td>${x.scores.safetyScore}</td>
+      <td>${x.tempMax}°C</td>
+      <td>${x.windMax} km/h</td>
+      <td>${x.waveHeight == null ? "n/a" : x.waveHeight+" m"}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div style="min-width:330px">
+      <div class="popup-title">${result.beach.name}</div>
+      <div class="popup-sub">${result.beach.municipality} · ${result.beach.water} · ${result.beach.type}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0">
+        <div><b>${s.overall}</b><br><span style="color:#9eb5c7">Overall</span></div>
+        <div><b>${s.crowdScore}%</b><br><span style="color:#9eb5c7">Crowd</span></div>
+        <div><b>${s.safetyScore}</b><br><span style="color:#9eb5c7">Safety</span></div>
+      </div>
+      <div style="font-size:12px;color:#9eb5c7;margin-bottom:8px">
+        ${r.tempMax}°C high · rain ${r.rainProbability}% / ${r.precipitation}mm · wind ${r.windMax} km/h · UV ${r.uvMax}
+      </div>
+      <table class="popup-table">
+        <tr><th>Date</th><th>Score</th><th>Crowd</th><th>Safe</th><th>Temp</th><th>Wind</th><th>Wave</th></tr>
+        ${seven}
+      </table>
+      <div style="font-size:11px;color:#9eb5c7;margin-top:8px">
+        ${result.historic ? "10-year same-date average high: " + result.historic.avgTemp.toFixed(1) + "°C" : "Historic trend not loaded."}
+      </div>
+    </div>
+  `;
+}
+
+function renderMarkers(results){
+  clearMarkers();
+
+  const heat = [];
+
+  results.forEach(result => {
+    const r = result.rows[state.dayIndex] || result.rows[0];
+    const score = r.scores.overall;
+    const color = scoreColor(score);
+
+    const icon = L.divIcon({
+      className: "beach-score-icon",
+      html: `<div style="
+        width:46px;height:46px;border-radius:50%;
+        background:${color};color:#071018;
+        display:flex;align-items:center;justify-content:center;
+        font-weight:950;border:2px solid white;
+        box-shadow:0 0 20px rgba(0,0,0,.55);
+      ">${score}</div>`,
+      iconSize:[46,46],
+      iconAnchor:[23,23]
+    });
+
+    const marker = L.marker([result.beach.lat,result.beach.lon], {icon})
+      .addTo(map)
+      .bindPopup(popupHtml(result), {maxWidth:420});
+
+    marker.on("click", () => marker.setPopupContent(popupHtml(result)));
+    state.markers.push(marker);
+
+    heat.push([result.beach.lat, result.beach.lon, score/100]);
+  });
+
+  if(window.L.heatLayer){
+    state.heatLayer = L.heatLayer(heat, {
+      radius: 48,
+      blur: 38,
+      maxZoom: 10,
+      max: 1
+    }).addTo(map);
+  }
+}
+
+function shortDate(dateStr){
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("en-CA", {month:"short", day:"numeric"});
+}
+
+function renderBest(results){
+  const best = [...results].sort((a,b) => {
+    const ar = a.rows[state.dayIndex] || a.rows[0];
+    const br = b.rows[state.dayIndex] || b.rows[0];
+    return br.scores.overall - ar.scores.overall;
+  })[0];
+
+  const panel = $("bestPanel");
+  if(!best){
+    panel.innerHTML = `<div class="muted">No live data loaded.</div>`;
+    return;
+  }
+
+  const r = best.rows[state.dayIndex] || best.rows[0];
+  const s = r.scores;
+
+  panel.innerHTML = `
+    <div class="best-item">
+      <div class="best-title">${best.beach.name}</div>
+      <div class="muted">${best.beach.water} · ${shortDate(r.day)} · ${scoreLabel(s.overall)}</div>
+      <div class="score-big" style="color:${scoreColor(s.overall)}">${s.overall}/100</div>
+      <div class="grid">
+        <div class="metric"><b>${s.crowdScore}%</b><span>Crowd risk</span></div>
+        <div class="metric"><b>${s.safetyScore}</b><span>Safety</span></div>
+        <div class="metric"><b>${s.swimScore}</b><span>Swimming</span></div>
+        <div class="metric"><b>${s.boatingScore}</b><span>Boating</span></div>
+      </div>
+      <div class="muted" style="margin-top:10px;font-size:13px">
+        ${r.tempMax}°C high, ${r.rainProbability}% rain chance, ${r.windMax} km/h wind,
+        ${r.waveHeight == null ? "wave unavailable" : r.waveHeight + " m wave"}.
+      </div>
+    </div>
+  `;
+}
+
+function renderTable(results){
+  const tbody = $("rankingBody");
+  const sorted = [...results].sort((a,b) => {
+    const ar = a.rows[state.dayIndex] || a.rows[0];
+    const br = b.rows[state.dayIndex] || b.rows[0];
+    return br.scores.overall - ar.scores.overall;
+  });
+
+  tbody.innerHTML = sorted.map((result, i) => {
+    const r = result.rows[state.dayIndex] || result.rows[0];
+    const s = r.scores;
+    return `
+      <tr>
+        <td>${i+1}</td>
+        <td><b>${result.beach.name}</b><br><span class="muted">${result.beach.municipality}</span></td>
+        <td>${result.beach.water}</td>
+        <td><span class="badge" style="background:${scoreColor(s.overall)}">${s.overall}</span></td>
+        <td>${s.crowdScore}%</td>
+        <td>${s.safetyScore}</td>
+        <td>${s.swimScore}</td>
+        <td>${r.tempMax}°C</td>
+        <td>${r.rainProbability}% / ${r.precipitation}mm</td>
+        <td>${r.windMax} km/h</td>
+        <td>${r.waveHeight == null ? "n/a" : r.waveHeight+" m"}</td>
+        <td>${result.historic ? result.historic.avgTemp.toFixed(1)+"°C" : "not loaded"}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderAll(){
+  renderMarkers(state.results);
+  renderBest(state.results);
+  renderTable(state.results);
+}
+
+async function refreshLive(){
+  $("refreshBtn").disabled = true;
+  $("historicBtn").disabled = true;
+  setStatus("Starting live update...");
+
+  const results = [];
+  for(let i=0;i<BEACHES.length;i++){
+    try{
+      const result = await loadOneBeach(BEACHES[i], i, BEACHES.length);
+      results.push(result);
+    }catch(e){
+      console.error("Failed to load", BEACHES[i].name, e);
+      results.push({
+        beach: BEACHES[i],
+        rows: [{
+          day: new Date().toISOString().slice(0,10),
+          tempMax:null, precipitation:null, rainProbability:null, windMax:null, gustMax:null,
+          uvMax:null, cloudCover:null, waveHeight:null,
+          scores:{overall:0,crowdScore:0,safetyScore:0,swimScore:0,boatingScore:0,weatherScore:0}
+        }],
+        error: String(e)
+      });
+    }
+  }
+
+  state.results = results;
+  renderAll();
+  $("refreshBtn").disabled = false;
+  $("historicBtn").disabled = false;
+  setStatus(`Live update complete. ${results.filter(r=>!r.error).length}/${BEACHES.length} locations loaded.`);
+}
+
+function sameMonthDay(dateStr, year){
+  const d = new Date(dateStr + "T12:00:00");
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${year}-${mm}-${dd}`;
+}
+
+async function fetchArchiveDay(beach, dateStr){
+  const params = new URLSearchParams({
+    latitude: beach.lat,
+    longitude: beach.lon,
+    start_date: dateStr,
+    end_date: dateStr,
+    daily: "temperature_2m_max,precipitation_sum,wind_speed_10m_max",
+    timezone: "America/Toronto"
+  });
+  const url = "https://archive-api.open-meteo.com/v1/archive?" + params.toString();
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("archive failed");
+  return await res.json();
+}
+
+async function loadHistoricTrends(){
+  if(!state.results.length){
+    await refreshLive();
+  }
+
+  $("refreshBtn").disabled = true;
+  $("historicBtn").disabled = true;
+
+  const selectedRow = state.results[0]?.rows[state.dayIndex] || state.results[0]?.rows[0];
+  const targetDate = selectedRow?.day || new Date().toISOString().slice(0,10);
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for(let y=currentYear-10; y<currentYear; y++) years.push(y);
+
+  for(let i=0;i<state.results.length;i++){
+    const result = state.results[i];
+    setStatus(`Loading 10-year trend ${i+1}/${state.results.length}: ${result.beach.name}`);
+    const temps = [];
+    const rains = [];
+    const winds = [];
+
+    for(const y of years){
+      const archiveDate = sameMonthDay(targetDate, y);
+      try{
+        const data = await fetchArchiveDay(result.beach, archiveDate);
+        const t = data.daily?.temperature_2m_max?.[0];
+        const p = data.daily?.precipitation_sum?.[0];
+        const w = data.daily?.wind_speed_10m_max?.[0];
+        if(typeof t === "number") temps.push(t);
+        if(typeof p === "number") rains.push(p);
+        if(typeof w === "number") winds.push(w);
+      }catch(e){
+        console.warn("Archive failed", result.beach.name, y, e);
+      }
+    }
+
+    const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+    result.historic = {
+      years: years.length,
+      avgTemp: avg(temps) ?? 0,
+      avgRain: avg(rains) ?? 0,
+      avgWind: avg(winds) ?? 0
+    };
+  }
+
+  state.historicLoaded = true;
+  renderAll();
+  $("refreshBtn").disabled = false;
+  $("historicBtn").disabled = false;
+  setStatus("10-year heat trend loaded.");
+}
+
+$("refreshBtn").addEventListener("click", refreshLive);
+$("historicBtn").addEventListener("click", loadHistoricTrends);
+initDaySelect();
+refreshLive();
 </script>
 </body>
 </html>
